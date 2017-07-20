@@ -1,0 +1,9 @@
+---
+title: "First Shiny App"
+output: html_notebook
+---
+
+Shiny app requires 
+
+- `ui.R` file for storing user interface
+- `server.R` file for storing analysis
