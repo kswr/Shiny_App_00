@@ -1,4 +1,0 @@
-# computations, statistical analysis
-shinyServer(
-  
-)

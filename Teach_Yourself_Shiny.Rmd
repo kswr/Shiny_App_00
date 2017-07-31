@@ -1,0 +1,264 @@
+---
+title: "Teach Yourself Shiny - Shiny tutorial by RStudio"
+output: html_notebook
+---
+
+[source video](https://shiny.rstudio.com/tutorial/)
+
+What Shiny can do: [Shiny Showcase](https://www.rstudio.com/products/shiny/shiny-user-showcase/)
+
+# Part 1 - How to build a Shiny app
+
+## Introduction
+
+## R
+
+Writing shiny app requires R knowledge
+
+## App architecture
+
+What user sees is only a front-end of an application, backend is server running R script everytime user interacts with an app.
+
+App elements are manipulatable with drop-down menus, checkboxes, user input.
+
+### App components
+
+Each shiny app requires 2 component
+
+- UI - webpage that user interacts with
+- Server instructions
+
+## App template
+
+```{r eval=FALSE}
+library(shiny)
+ui <- fluidPage()
+
+server <- function(input, output) {}
+
+shinyApp(ui = ui, server = server)
+```
+
+Modern shiny app contains of 2 objects: 
+
+- `ui` object that handles user interface for input and output
+- `server` object that handles calculations
+
+## Inputs and outputs
+
+Build your app around `input()` and `output()` functions as parameters passed to  `ui` object
+
+### `*Input()` functions
+
+What `*Input()` function produces; given code:
+```{r eval=F}
+sliderInput(inputId = 'num',
+            label = 'Choose a number',
+            value = 25, min = 1, max = 100)
+```
+Produces html script
+```{html}
+<div class="container-fluid">
+  <div class="form-group shiny-input-container">
+    <label class="control-label" for="num">Choose a number</label>
+    <input class="js-range-slider" id="num" data-min="1" data-max="100" data-from="25" data-step="1" data-grid="true" data-grid-num="9.9" data-grid-snap="false" data-prettify-separator="," data-prettify-enabled="true" data-keyboard="true" data-keyboard-step="1.01010101010101" data-data-type="number"/>
+  </div>
+</div>
+```
+
+Shiny provides about dozen input functions (available in help and documentation)
+
+Standard `*Input()` function Syntax
+```{r eval=F}
+functionInput(<input_name>,<label>,<other_specific_parameters>)
+```
+
+### `*Output()` functions
+
+Full list available in help
+
+Standard `*Output()` function Syntax
+```{r eval=F}
+functionOutput(<output_name>,<other_specific_parameters>)
+```
+
+## The server function
+
+It's being used to assemble inputs into outputs
+
+You have to follow 3 rules to get reactivity:
+- save objects to display to `output$`
+- build objects to display with `render*()` functions
+- use input values with `input$`
+    - input values changes whenever a user changes the input
+
+Reactivity 101 - reactivity automatically occurs whenever you use an input value to render an output object
+
+## Sharing apps
+- Shinyapps.io
+- Shiny Server (community or Pro)
+
+Every app has to contain `ui` and `server` objects in `app.R` file.
+Older architecture (still compatible with Shiny Server) required puting `ui` and `server` parameters into separate files named accordingly (`ui.R`, `server.R`). This way of creating apps is not obsolete, it can still benefit when designing larger, more complex apps.
+
+`app.R` script has to end with call to `shinyApp()` function
+
+App and all it's dependencies (pictures, datasets, css, helper scripts etc.)
+should be saved in one directory
+
+# Part 2 - How to customize reactions
+
+## Reactivity
+
+App renders new output based on user input
+
+## Reactive values
+
+`input$num` - creates input value named "num"
+
+`render*()` - builds reactive otput ito display in UI
+
+```{r eval=F}
+renderPlot(
+  {
+    # code in curly brackets will rebuild rendered object each time input value is changed
+    hist(rnorm(input$num))
+  }
+)
+```
+
+Important note on scalability: When notified it is invalid, the object created by a `render*()` function will reurn the **entire block of code** associated with it
+
+
+## Reactive functions
+
+## `render*()`
+- makes an object to display
+- always save the result to `output$`
+- `render*()` makes an observer object that has a **block of code** associated with it
+- The object will rerun the entire doe block to update itself whenever it is invalidated
+
+## Modularize code with `reactive()`
+
+Make sure all objects using the same input values use the same data based on that input; call input once to generate data on the server side
+
+To do this use `reactive()` function; `reactive()` builds a reactive object (reactive expression)
+
+```{r eval=F}
+data <- reactive({rnorm(input$num)})
+```
+
+Reactive expression 
+- can be called like a function (eg. `data()`)
+- it caches it value (avoid unnecesary computations) 
+
+## Prevent reactions with `isolate()`
+
+Prevent title field from updating the plot until user updates value of other, not isolated variable
+
+It allows developer to create chain of reactivity
+
+`isolate()` returns the result as a non-reactive value
+
+```{r eval=F}
+isolate({rnorm(input$num)})
+```
+
+
+## Trigger code with `observeEvent()` 
+
+An action button - works as input function
+
+```{r eval=F}
+ui <- fluidPage(
+  actionButton(inputId = "clicks",
+    label = "Click me")
+)
+```
+
+`observeEvent()` syntax
+```{r eval=F}
+observeEvent(
+  # reactive values to respond to (observer invalidates ONLY when this value changes)
+  input$clicks,{ 
+    #code block to run whenever observer is invalidated
+    print(input$clicks)
+  }
+)
+```
+
+Code wrapped in `observeEvent()` won't run even if it's valueas are being modified, until event is not observed (wchich triggers evaluation of the code)
+
+`observe()` - also triggers code to run on server, uses same syntax as `render*()`, `reactive()` and `isolate()`
+
+```{r eval=F}
+observe({print(input$clicks)})
+```
+
+Observer will respond to every reactive value in the code and rerun it's code block
+
+### Recap `observeEvent()`
+- triggers code to run on the server
+- specify precisely which reactive values should invalidate the observer
+- use `observe()` for a more implicit syntax
+
+## Delay reactions with eventReactive()
+
+A reactive expression that only responds to specific values
+```{r eval=F}
+data <- eventReactive(
+  # reactive value(s) to respond to 
+  input$go, {
+    # code used to build (and rebuild) object
+    # this code will be treated as if it has beend isolated with isolate()
+    ronorm(input$num)
+  }
+)
+```
+
+### Recap
+- use `eventReactive()` to delay reactions
+- `eventReactive()` creates a reactive expression
+- you can specify precisely which reactive values should invalidate the expression
+
+## Manage state with `reactiveValues()`
+
+creates a list of reactive values to manipulate programmatically
+
+```{r}
+rv <- reactiveVAlues(
+  # optional elements to add to the list
+  data = rnorm(100)
+)
+```
+
+### Recap 
+
+- `reactiveValues()` creates a list of reactive values
+- you can manipulate these values (usually with `observeEvent()`)
+
+
+
+## Recap - Part 2
+
+## Parting tips
+
+# Part 3 - How to customize appearance
+
+## Introduction
+
+## Review of Parts 1 and 2
+
+## HTML UI
+
+## Adding static content
+
+## Building layouts
+
+## Panels and tabsets
+
+## Prepackaged layouts
+
+## CSS
+
+## Recap - Part 3
